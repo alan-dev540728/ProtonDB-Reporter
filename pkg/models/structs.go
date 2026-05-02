@@ -8,6 +8,20 @@ type Game struct {
 	CalculatedRating    string
 	OfficialRating      string
 	TotalReports        int
+	TopProtonVersions   []VersionStats
+	TopLinuxDistros     []DistroStats
+}
+
+type VersionStats struct {
+	Version    string
+	Count      int
+	Percentage float64
+}
+
+type DistroStats struct {
+	Distro     string
+	Count      int
+	Percentage float64
 }
 
 /*
@@ -18,8 +32,10 @@ Verdict = Yes => Recommended Vanilla, No need to Tinker
 Verdict = No => Not Working, Not Recommended
 */
 type Report struct {
+	AppTitle            string
 	Installs            bool
 	ProtonVersion       string
+	CustomProtonVersion string
 	Verdict             string
 	VerdictOutOfTheBox  string
 	OperatingSystem     string
