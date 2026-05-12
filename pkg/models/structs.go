@@ -30,11 +30,13 @@ Verdict = Yes and VerdictOutOfTheBox = No => Not Recommended Vanilla, Recommend 
 Verdict = Yes and VerdictOutOfTheBox = Yes => Recommended to play but need to Tinker
 Verdict = Yes => Recommended Vanilla, No need to Tinker
 Verdict = No => Not Working, Not Recommended
+should we update ProtonVer and CustomProton names?
 */
 type Report struct {
-	AppTitle            string
-	Installs            bool
-	ProtonVersion       string
+	AppTitle      string
+	Installs      bool
+	ProtonVersion string
+	// todo
 	CustomProtonVersion string
 	Verdict             string
 	VerdictOutOfTheBox  string

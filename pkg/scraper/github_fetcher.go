@@ -3,8 +3,8 @@ package scraper
 import (
 	"archive/tar"
 	"compress/gzip"
-	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -12,18 +12,19 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/AllanRaphael173554/protondb-reporter/pkg/models"
 )
 
-func FetchMonthlyReports() ([]models.Report, error) {
+func FetchMonthlyReports() ([]byte, error) {
 	// https://github.com/bdefore/protondb-data/blob/master/reports/reports_jan1_2023.tar.gz
 	// pattern is reports_MMM1_YYYY.tar.gz
 	// https://raw.githubusercontent.com/bdefore/protondb-data/master/reports/reports_may1_2025.tar.gz
-	// https://gophercoding.com/download-a-file/
 
-	years := []int{2023, 2024, 2025}
-	months := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+	// should skip all dates that are future in client including days or stop when there is a hit and
+	// add more print to show what's happening in the fetcher
+	// or just base the year and month on the current client date
+
+	years := []int{2026, 2025, 2024}
+	months := []int{12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
 	var found bool
 	var monthDateYear time.Time
 	var fullFilePath string
@@ -37,18 +38,19 @@ func FetchMonthlyReports() ([]models.Report, error) {
 			if found {
 				break
 			}
-			for days := 1; days <= 31; days++ {
+			for days := 1; days <= 5; days++ {
 				if found {
 					break
 				}
 				monthDateYear = time.Date(years[year], time.Month(months[month]), days, 0, 0, 0, 0, time.UTC)
 				protonDBDataRepoURL := "https://raw.githubusercontent.com/bdefore/protondb-data/master/reports/" + "reports_" + strings.ToLower(monthDateYear.Format("Jan2_2006")) + ".tar.gz"
 				fullFilePath, errorDownloadFile = DownloadFile("reports_"+strings.ToLower(monthDateYear.Format("Jan2_2006"))+".tar.gz", protonDBDataRepoURL)
-				if errorDownloadFile != nil {
-					return nil, errorDownloadFile
+
+				if errorDownloadFile == nil {
+					found = true
+					break
 				}
-				found = true
-				break
+
 			}
 
 		}
@@ -75,6 +77,10 @@ func DownloadFile(fileNameFormatted string, url string) (fullFilePath string, er
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("HTTP %d: failed to download %s", resp.StatusCode, url)
+	}
+
 	//osmkdir
 	errorMkDirDownloads := os.MkdirAll("data/reports/downloads", 0750)
 	if errorMkDirDownloads != nil && !os.IsExist(errorMkDirDownloads) {
@@ -95,9 +101,9 @@ func DownloadFile(fileNameFormatted string, url string) (fullFilePath string, er
 	return filepath.Join("data/reports/downloads", fileNameFormatted), err
 }
 
-func extractTarGz(fullFilePath string) ([]models.Report, error) {
+func extractTarGz(fullFilePath string) ([]byte, error) {
 
-	var reports []models.Report
+	//var reports []models.Report
 
 	file, err := os.Open(fullFilePath)
 	if err != nil {
@@ -126,14 +132,16 @@ func extractTarGz(fullFilePath string) ([]models.Report, error) {
 		}
 
 		if header.Name == "reports_piiremoved.json" {
-			err := json.NewDecoder(tarReader).Decode(&reports)
-			if err != nil {
-				return nil, err
-			}
-			break
+			/*
+				err := json.NewDecoder(tarReader).Decode(&reports)
+				if err != nil {
+					return nil, err
+				}
+			*/
+			jsonBytes, _ := io.ReadAll(tarReader)
+			return jsonBytes, nil
 		}
 
 	}
-
-	return reports, nil
+	return nil, errors.New("reports_piiremoved.json not found in the tar.gz archive")
 }

@@ -1,0 +1,10 @@
+# git ignore files
+.env
+plan.md
+unit_test
+game_388.txt
+test
+comparison.txt
+unit_test.go
+# git ignore folders
+/data/reports/

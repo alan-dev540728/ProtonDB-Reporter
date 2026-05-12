@@ -15,21 +15,15 @@ func AggregateCommonProtonVersion(reports []models.Report) []models.VersionStats
 		return []models.VersionStats{}
 	}
 
-	/*
-		what's the best way to take all common proton version from the reports and return it as a string?
-
-		Create a map or list to count the occurrences of each proton version
-		for loop the reports and count, then find the proton version with
-		the highest count and return it as a string
-
-		I think this logic flow can be implemented to other function except rating change
-
-	*/
-
 	var protonVersionCount = make(map[string]int)
 
 	for _, report := range reports {
-		protonVersionCount[report.ProtonVersion]++
+		versionToCount := report.ProtonVersion
+
+		if versionToCount != "native" && versionToCount != "" {
+			protonVersionCount[versionToCount]++
+		}
+
 	}
 
 	var protonVersions []models.VersionStats
@@ -97,9 +91,8 @@ Possible Rating Version
 <10% Broken
 */
 
-// ToDo: Implement the logic of these 2 functions and add tests for them
-// Report struct
 // AggregateVerdictDistribution Calculates Yes, No and Not recommended OOTB but Yes if tinker verdicts
+// Game Verdict Votes
 func AggregateVerdictDistribution(reports []models.Report) string {
 
 	if len(reports) == 0 {
@@ -161,5 +154,5 @@ func CalculateGameRating(verdictCountYes int, verdictCountNo int, verdictOOTBCou
 	} else {
 		ratingTier = "Broken"
 	}
-	return ratingTier + " " + ootbRatingYes + " " + ootbRatingNo + " A total of " + strconv.Itoa(totalReports) + " reports"
+	return ratingTier + " " + ootbRatingYes + " " + ootbRatingNo + " A total of " + strconv.Itoa(totalReports) + " reports has been made by the community, you can help expanding this by submitting your own report on ProtonDB.com"
 }

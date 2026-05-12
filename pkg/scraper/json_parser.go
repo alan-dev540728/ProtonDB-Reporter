@@ -2,6 +2,8 @@ package scraper
 
 import (
 	"encoding/json"
+	"fmt"
+	"strconv"
 
 	"github.com/AllanRaphael173554/protondb-reporter/pkg/models"
 )
@@ -22,23 +24,43 @@ func FilterReportsByGameID(jsonData []byte, gameID string) ([]models.Report, str
 		report := rawReport.(map[string]interface{})
 		app := report["app"].(map[string]interface{})
 		steam := app["steam"].(map[string]interface{})
-		appId := steam["appId"].(string)
+
+		appId, err := toStringAppId(steam["appId"])
+		if err != nil {
+			return nil, "", fmt.Errorf("error converting appId to string: %v", err)
+		}
 
 		if appId == gameID {
-			title := app["title"].(string)
+			title := toStringField(app["title"])
 			responses := report["responses"].(map[string]interface{})
-			verdict := responses["verdict"].(string)
-			verdictOob := responses["verdictOob"].(string)
-			protonVersion := responses["protonVersion"].(string)
-			customProtonVersion := responses["customProtonVersion"].(string)
-			installs := responses["installs"].(string)
-			isImpactedByAntiCheat := responses["isImpactedByAntiCheat"].(string)
-			OS := report["systemInfo"].(map[string]interface{})["os"].(string)
+			verdict := toStringField(responses["verdict"])
+			verdictOob := toStringField(responses["verdictOob"])
+			variant := toStringField(responses["variant"])
+			customProtonVersion := toStringField(responses["customProtonVersion"])
+			installs := toStringField(responses["installs"])
+			isImpactedByAntiCheat := toStringField(responses["isImpactedByAntiCheat"])
+			OS := toStringField(report["systemInfo"].(map[string]interface{})["os"])
+
+			if variant == "older" {
+				if legacyVer := toStringField(responses["protonVersion"]); legacyVer != "" {
+					variant = legacyVer
+				}
+			} else if variant == "notListed" {
+				if notes, ok := responses["notes"].(map[string]interface{}); ok {
+					if notListedVar := toStringField(notes["variant"]); notListedVar != "" {
+						variant = notListedVar
+					}
+				}
+			} else if variant == "ge" {
+				if customVer := toStringField(responses["customProtonVersion"]); customVer != "" {
+					variant = customVer
+				}
+			}
 
 			filteredReport := models.Report{
 				AppTitle:            title,
 				Installs:            stringToBool(installs),
-				ProtonVersion:       protonVersion,
+				ProtonVersion:       variant,
 				CustomProtonVersion: customProtonVersion,
 				Verdict:             verdict,
 				VerdictOutOfTheBox:  verdictOob,
@@ -66,4 +88,34 @@ func stringToBool(s string) bool {
 		return true
 	}
 	return false
+}
+
+func toStringField(value interface{}) string {
+	if value == nil {
+		return ""
+	}
+
+	switch v := value.(type) {
+	case string:
+		return v
+	case float64:
+		return strconv.FormatInt(int64(v), 10)
+	default:
+		return ""
+	}
+}
+
+func toStringAppId(value interface{}) (string, error) {
+	if value == nil {
+		return "", fmt.Errorf("appId is nil")
+	}
+
+	switch v := value.(type) {
+	case string:
+		return v, nil
+	case float64:
+		return strconv.FormatInt(int64(v), 10), nil
+	default:
+		return "", fmt.Errorf("unexpected type for appId: %T", value)
+	}
 }
