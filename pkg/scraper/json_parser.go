@@ -15,51 +15,54 @@ func FilterReportsByGameID(jsonData []byte, gameID string) ([]models.Report, str
 	var filteredReports []models.Report
 	var gameTitle string
 	var found bool
+
 	err := json.Unmarshal(jsonData, &rawReports)
 	if err != nil {
 		return nil, "", err
 	}
+
+	fmt.Println("Parsing Reports for " + gameID)
 
 	for _, rawReport := range rawReports {
 		report := rawReport.(map[string]interface{})
 		app := report["app"].(map[string]interface{})
 		steam := app["steam"].(map[string]interface{})
 
-		appId, err := toStringAppId(steam["appId"])
-		if err != nil {
-			return nil, "", fmt.Errorf("error converting appId to string: %v", err)
-		}
+		// converts anything to string
+		// always returns a string or empty if no matches for data type i feel like this will cause issues if protonDB changes the data type
+		// this issue is present to all var that uses toString function
+		appId := toString(steam["appId"])
 
 		if appId == gameID {
-			title := toStringField(app["title"])
+			title := toString(app["title"])
 			responses := report["responses"].(map[string]interface{})
-			verdict := toStringField(responses["verdict"])
-			verdictOob := toStringField(responses["verdictOob"])
-			variant := toStringField(responses["variant"])
-			customProtonVersion := toStringField(responses["customProtonVersion"])
-			installs := toStringField(responses["installs"])
-			isImpactedByAntiCheat := toStringField(responses["isImpactedByAntiCheat"])
-			OS := toStringField(report["systemInfo"].(map[string]interface{})["os"])
+			verdict := toString(responses["verdict"])
+			verdictOob := toString(responses["verdictOob"])
+			variant := toString(responses["variant"])
+			customProtonVersion := toString(responses["customProtonVersion"])
+			installs := toString(responses["installs"])
+			isImpactedByAntiCheat := toString(responses["isImpactedByAntiCheat"])
+			OS := toString(report["systemInfo"].(map[string]interface{})["os"])
 
 			if variant == "older" {
-				if legacyVer := toStringField(responses["protonVersion"]); legacyVer != "" {
+				if legacyVer := toString(responses["protonVersion"]); legacyVer != "" {
 					variant = legacyVer
 				}
 			} else if variant == "notListed" {
 				if notes, ok := responses["notes"].(map[string]interface{}); ok {
-					if notListedVar := toStringField(notes["variant"]); notListedVar != "" {
+					if notListedVar := toString(notes["variant"]); notListedVar != "" {
 						variant = notListedVar
 					}
 				}
 			} else if variant == "ge" {
-				if customVer := toStringField(responses["customProtonVersion"]); customVer != "" {
+				if customVer := toString(responses["customProtonVersion"]); customVer != "" {
 					variant = customVer
 				}
 			}
 
 			filteredReport := models.Report{
 				AppTitle:            title,
-				Installs:            stringToBool(installs),
+				Installs:            installs,
 				ProtonVersion:       variant,
 				CustomProtonVersion: customProtonVersion,
 				Verdict:             verdict,
@@ -77,8 +80,9 @@ func FilterReportsByGameID(jsonData []byte, gameID string) ([]models.Report, str
 	}
 
 	if !found {
-		return nil, "", nil
+		return nil, "", fmt.Errorf("no reports found for game ID %s in the database", gameID)
 	}
+	fmt.Println("Finished parsing reports for " + gameID)
 	return filteredReports, gameTitle, nil
 
 }
@@ -90,10 +94,7 @@ func stringToBool(s string) bool {
 	return false
 }
 
-func toStringField(value interface{}) string {
-	if value == nil {
-		return ""
-	}
+func toString(value interface{}) string {
 
 	switch v := value.(type) {
 	case string:
@@ -103,19 +104,5 @@ func toStringField(value interface{}) string {
 	default:
 		return ""
 	}
-}
 
-func toStringAppId(value interface{}) (string, error) {
-	if value == nil {
-		return "", fmt.Errorf("appId is nil")
-	}
-
-	switch v := value.(type) {
-	case string:
-		return v, nil
-	case float64:
-		return strconv.FormatInt(int64(v), 10), nil
-	default:
-		return "", fmt.Errorf("unexpected type for appId: %T", value)
-	}
 }

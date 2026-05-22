@@ -10,6 +10,7 @@ type Game struct {
 	TotalReports        int
 	TopProtonVersions   []VersionStats
 	TopLinuxDistros     []DistroStats
+	NativeReports       NativeStats
 }
 
 type VersionStats struct {
@@ -24,19 +25,24 @@ type DistroStats struct {
 	Percentage float64
 }
 
+type NativeStats struct {
+	Count           int
+	WorkingCount    int
+	NotWorkingCount int
+}
+
 /*
 To check
 Verdict = Yes and VerdictOutOfTheBox = No => Not Recommended Vanilla, Recommend to Tinker
-Verdict = Yes and VerdictOutOfTheBox = Yes => Recommended to play but need to Tinker
+Verdict = Yes and VerdictOutOfTheBox = Yes => Recommended to play but may recommend/need to Tinker
 Verdict = Yes => Recommended Vanilla, No need to Tinker
 Verdict = No => Not Working, Not Recommended
 should we update ProtonVer and CustomProton names?
 */
 type Report struct {
-	AppTitle      string
-	Installs      bool
-	ProtonVersion string
-	// todo
+	AppTitle            string
+	Installs            string
+	ProtonVersion       string
 	CustomProtonVersion string
 	Verdict             string
 	VerdictOutOfTheBox  string

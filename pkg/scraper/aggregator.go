@@ -91,7 +91,7 @@ Possible Rating Version
 <10% Broken
 */
 
-// AggregateVerdictDistribution Calculates Yes, No and Not recommended OOTB but Yes if tinker verdicts
+// AggregateVerdictDistribution Calculates Yes Verdict, No Verdict and Not recommended OOB but Yes if tinker verdicts
 // Game Verdict Votes
 func AggregateVerdictDistribution(reports []models.Report) string {
 
@@ -112,6 +112,8 @@ func AggregateVerdictDistribution(reports []models.Report) string {
 
 			if report.VerdictOutOfTheBox == "no" {
 				verdictOOTBCountNo++
+				//VerdictYes But OOB No is tinkering recommended
+				//VerdictTinkerRecommend++
 			}
 
 		}
@@ -125,7 +127,7 @@ func AggregateVerdictDistribution(reports []models.Report) string {
 	return gameRating
 }
 
-// CalculateGameRating calculates Plat, Gold, Silver, Bronze and Broken
+// CalculateGameRating calculates Plat, Gold, Silver, Bronze and Broken unofficially
 // verdictOOTB counts to check if reports are recommending to tinker or not
 func CalculateGameRating(verdictCountYes int, verdictCountNo int, verdictOOTBCountYes int, verdictOOTBCountNo int, totalReports int) string {
 
@@ -136,11 +138,11 @@ func CalculateGameRating(verdictCountYes int, verdictCountNo int, verdictOOTBCou
 	var ootbRatingYes, ootbRatingNo, ratingTier string
 
 	if verdictOOTBCountYes == totalReports {
-		ootbRatingYes = "A total of " + strconv.Itoa(verdictOOTBCountYes) + " Working Out of the Box reports suggests that the game can be played Out of the Box"
+		ootbRatingYes = "\n " + strconv.Itoa(verdictOOTBCountYes) + " Working Out of the Box reports suggests that the game can be played Out of the Box"
 	}
 
 	if verdictOOTBCountNo > 0 {
-		ootbRatingNo = "A total of " + strconv.Itoa(verdictOOTBCountNo) + " Not Working Out of the Box reports suggests that the game may require tinkering Proton version or some workaround to be played"
+		ootbRatingNo = "\n " + strconv.Itoa(verdictOOTBCountNo) + " Not Working Out of the Box reports suggests that the game may require tinkering Proton version or some workaround to be played"
 	}
 
 	if totalVerdictRating >= 90 {
@@ -154,5 +156,23 @@ func CalculateGameRating(verdictCountYes int, verdictCountNo int, verdictOOTBCou
 	} else {
 		ratingTier = "Broken"
 	}
-	return ratingTier + " " + ootbRatingYes + " " + ootbRatingNo + " A total of " + strconv.Itoa(totalReports) + " reports has been made by the community, you can help expanding this by submitting your own report on ProtonDB.com"
+	return ratingTier + " " + ootbRatingYes + " " + ootbRatingNo + "\n A total of " + strconv.Itoa(totalReports) + " reports has been made by the community, you can help expanding this by submitting your own report on ProtonDB.com"
+}
+
+func AggregateNativeReports(reports []models.Report) models.NativeStats {
+
+	var stats models.NativeStats
+
+	for _, report := range reports {
+		if report.ProtonVersion == "native" {
+			stats.Count++
+			if report.Verdict == "yes" {
+				stats.WorkingCount++
+			} else if report.Verdict == "no" {
+				stats.NotWorkingCount++
+			}
+		}
+	}
+
+	return stats
 }

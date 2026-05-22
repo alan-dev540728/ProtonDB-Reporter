@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/AllanRaphael173554/protondb-reporter/pkg/models"
 	"github.com/AllanRaphael173554/protondb-reporter/pkg/scraper"
@@ -11,7 +13,6 @@ import (
 Todo:
 Add more error log and handling
 uniformed error logging either fmt or errors.new
-fix missing proton and other distro counts
 fix broken forloop in fetcher
 */
 
@@ -27,6 +28,17 @@ func main() {
 	fmt.Println("=================================")
 	fmt.Println("Enter Game ID to Fetch Reports:")
 	fmt.Scanln(&gameID)
+
+	gameID = strings.TrimSpace(gameID)
+	if gameID == "" {
+		fmt.Println("Game ID cannot be empty.")
+		return
+	}
+
+	if _, err := strconv.Atoi(gameID); err != nil {
+		fmt.Printf("Game ID must be numeric")
+		return
+	}
 
 	//fmt.Println("Do you want to save the report to a file? (y/n)")
 	//fmt.Scanln(&outputFile)
@@ -49,9 +61,9 @@ func main() {
 
 	for _, report := range filteredReports {
 		verdictMap[report.Verdict]++
-
 	}
 	ratingStr := scraper.AggregateVerdictDistribution(filteredReports)
+	nativeStats := scraper.AggregateNativeReports(filteredReports)
 	topProtonVersions := scraper.AggregateCommonProtonVersion(filteredReports)
 	topDistros := scraper.AggregateCommonLinuxDistros(filteredReports)
 
@@ -65,8 +77,11 @@ func main() {
 		TotalReports:        len(filteredReports),
 		TopProtonVersions:   topProtonVersions,
 		TopLinuxDistros:     topDistros,
+		NativeReports:       nativeStats,
 	}
 
+	fmt.Println("Generating Report \n =================================")
 	reportText := scraper.GenerateReport(game)
 	fmt.Println(reportText)
+
 }

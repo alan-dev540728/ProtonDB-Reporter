@@ -12,7 +12,13 @@ func GenerateReport(game *models.Game) string {
 
 	verdictStr := "Game Verdict Votes: \n"
 	for verdict, count := range game.VerdictDistribution {
-		verdictStr += " " + verdict + ": " + strconv.Itoa(count) + "\n"
+		if verdict == "yes" {
+			verdictStr += " " + verdict + ": " + strconv.Itoa(count) + " (Reports state that the game is playable or recommend to tinker) \n"
+		}
+		if verdict == "no" {
+			verdictStr += " " + verdict + ": " + strconv.Itoa(count) + " (Reports state that the game is not playabe) \n"
+
+		}
 	}
 
 	protonStr := "Top Common Proton Versions: \n"
@@ -25,14 +31,19 @@ func GenerateReport(game *models.Game) string {
 		distroStr += " " + strconv.Itoa(i+1) + ". " + distroStat.Distro + " ( " + strconv.Itoa(distroStat.Count) + " reports ) \n"
 	}
 
+	nativeStr := "Native Linux Reports: \n Total: " + strconv.Itoa(game.NativeReports.Count) +
+		" ( " + strconv.Itoa(game.NativeReports.WorkingCount) + " working, " +
+		strconv.Itoa(game.NativeReports.NotWorkingCount) + " not working ) \n"
+
 	generatedReport := "Game Title: " + game.Title + "\n" +
 		"Game SteamDeck Status: " + game.SteamDeckStatus + "\n" +
+		"Official ProtonDB Rating: " + game.OfficialRating + "\n" +
 		"Total ProtonDB Community Reports: " + strconv.Itoa(game.TotalReports) + "\n" +
 		verdictStr +
-		"Calculated Rating: " + game.CalculatedRating + "\n" +
-		"Official ProtonDB Rating: " + game.OfficialRating + "\n" +
+		"Not Official Calculated Rating(Check ProtonDB Website for up-to-date Rating): " + game.CalculatedRating + "\n" +
 		protonStr +
-		distroStr
+		distroStr +
+		nativeStr
 
 	return generatedReport
 
