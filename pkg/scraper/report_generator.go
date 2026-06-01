@@ -1,7 +1,9 @@
 package scraper
 
 import (
+	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/AllanRaphael173554/protondb-reporter/pkg/models"
 )
@@ -47,4 +49,38 @@ func GenerateReport(game *models.Game) string {
 
 	return generatedReport
 
+}
+
+func GenerateSteamCuratorReport(game *models.Game) string {
+	now := time.Now()
+	var dateStr string
+	var nativeStr string
+
+	if game.NativeReports.Count == 0 {
+		dateStr = now.Format("Jan 2, 2006")
+		nativeStr = ""
+	} else {
+		dateStr = now.Format("2006-01-02")
+		nativeStr = fmt.Sprintf("\nNative Reports: Total: %d, %d working, %d not working",
+			game.NativeReports.Count,
+			game.NativeReports.WorkingCount,
+			game.NativeReports.NotWorkingCount)
+	}
+
+	return fmt.Sprintf("Game: %s\nTotal ProtonDB Community Reports: %d, you can help expanding this by submitting your own report on ProtonDB \nVerdicts: %d Yes, %d No%s \nProtonDB Rating: \nLast Updated: %s",
+		game.Title,
+		game.TotalReports,
+		game.VerdictDistribution["yes"],
+		game.VerdictDistribution["no"],
+		nativeStr,
+		dateStr)
+}
+
+func GenerateEmptyReportMessage(gameID string) string {
+	now := time.Now()
+	dateStr := now.Format("Jan 2, 2006")
+	return fmt.Sprintf("No Reports found for game ID %s in month's archive. \n "+
+		"Please consider making a detailed report on ProtonDB.com if you own this game "+
+		"and have tested it on Linux to help the community and get an accurate report next month \n"+
+		"Last Updated: %s", gameID, dateStr)
 }

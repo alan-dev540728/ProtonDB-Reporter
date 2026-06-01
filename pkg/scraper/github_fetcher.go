@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -27,47 +26,74 @@ func FetchMonthlyReports() ([]byte, error) {
 	// bug issue found if while downloading and you turn off the internet the whole CLI stops and does not update
 	// however it does continue if you reconnect to the internet
 
-	years := []int{2026}
-	months := []int{5, 4, 3, 2, 1}
+	// local, online and local fallback checks are added but need to add another one for previous month download if two scenarios of local current and online current not existing(fresh install or no old archive)
+
+	now := time.Now()
 	var found bool
 	var monthDateYear time.Time
 	var fullFilePath string
 	var errorDownloadFile error
+	years := now.Year()
+	months := now.Month()
 
 	fmt.Println("Fetching ProtonDB Report archive, this may take a moment...")
-
-	for year := range years {
+	for days := 1; days <= 5; days++ {
 		if found {
-			fmt.Println("ProtonDB Report Archive Found " + strings.ToLower(monthDateYear.Format("Jan2_2006")) + " attempting to download")
 			break
 		}
-		for month := range months {
-			if found {
-				break
-			}
-			fmt.Println("Report not found, Retrying Month " + strconv.Itoa(months[month]))
-			for days := 1; days <= 5; days++ {
-				if found {
-					break
-				}
 
-				monthDateYear = time.Date(years[year], time.Month(months[month]), days, 0, 0, 0, 0, time.UTC)
-				protonDBDataRepoURL := "https://raw.githubusercontent.com/bdefore/protondb-data/master/reports/" + "reports_" + strings.ToLower(monthDateYear.Format("Jan2_2006")) + ".tar.gz"
-				fullFilePath, errorDownloadFile = DownloadFile("reports_"+strings.ToLower(monthDateYear.Format("Jan2_2006"))+".tar.gz", protonDBDataRepoURL)
+		monthDateYear = time.Date(years, months, days, 0, 0, 0, 0, time.UTC)
 
-				if errorDownloadFile == nil {
-					found = true
-					break
-				} else {
-					fmt.Printf("(Day %d: %v)\n", days, errorDownloadFile)
-				}
+		fileNameFormatted := "reports_" + strings.ToLower(monthDateYear.Format("Jan2_2006")) + ".tar.gz"
+		localCachePath := filepath.Join("data/reports/downloads", fileNameFormatted)
 
-			}
+		if _, err := os.Stat(localCachePath); err == nil {
+			fmt.Printf("Found cached Archive for current month %s\n", fileNameFormatted)
+			fullFilePath = localCachePath
+			found = true
+			break
+		}
+
+		protonDBDataRepoURL := "https://raw.githubusercontent.com/bdefore/protondb-data/master/reports/" + "reports_" + strings.ToLower(monthDateYear.Format("Jan2_2006")) + ".tar.gz"
+		fullFilePath, errorDownloadFile = DownloadFile("reports_"+strings.ToLower(monthDateYear.Format("Jan2_2006"))+".tar.gz", protonDBDataRepoURL)
+
+		if errorDownloadFile == nil {
+			found = true
+			break
+		} else {
+			//fmt.Printf("(Day %d: %v)\n", days, errorDownloadFile)
+			fmt.Printf("Checking %s: %v\n", fileNameFormatted, errorDownloadFile)
 
 		}
-	}
 
+	}
+	// check and review this again
+	if !found {
+		fmt.Println("Current Month Report Archive not Found in local or online. Checking local download for Last Month Archive")
+		files, err := os.ReadDir("data/reports/downloads")
+		if err == nil {
+			var latestFile string
+			var latestTime time.Time
+
+			for _, file := range files {
+				if strings.HasSuffix(file.Name(), ".tar.gz") {
+
+					info, _ := file.Info()
+					if info.ModTime().After(latestTime) {
+						latestTime = info.ModTime()
+						latestFile = file.Name()
+					}
+				}
+			}
+			if latestFile != "" {
+				fullFilePath = filepath.Join("data/reports/downloads", latestFile)
+				fmt.Printf("Using local archive: %s\n", latestFile)
+				found = true
+			}
+		}
+	}
 	//can trigger if year/month/day is wrong
+	// would not be triggered because of !if statement above?
 	if !found {
 		return nil, errors.New("No report archive found")
 	}
@@ -84,7 +110,7 @@ func DownloadFile(fileNameFormatted string, url string) (fullFilePath string, er
 
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Printf("error at inside downloadFile func 112: " + err.Error())
+		fmt.Printf("error at inside downloadFile func 112: %s", err.Error())
 
 		return "", err
 	}

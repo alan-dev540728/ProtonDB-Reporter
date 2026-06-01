@@ -14,7 +14,6 @@ func FilterReportsByGameID(jsonData []byte, gameID string) ([]models.Report, str
 
 	var filteredReports []models.Report
 	var gameTitle string
-	var found bool
 
 	err := json.Unmarshal(jsonData, &rawReports)
 	if err != nil {
@@ -72,16 +71,15 @@ func FilterReportsByGameID(jsonData []byte, gameID string) ([]models.Report, str
 			}
 			filteredReports = append(filteredReports, filteredReport)
 
-			if !found {
-				gameTitle = title
-				found = true
-			}
+			gameTitle = title
 		}
 	}
 
-	if !found {
-		return nil, "", fmt.Errorf("no reports found for game ID %s in the database", gameID)
+	// to do about this new change
+	if len(filteredReports) == 0 {
+		return filteredReports, "", nil
 	}
+
 	fmt.Println("Finished parsing reports for " + gameID)
 	return filteredReports, gameTitle, nil
 
