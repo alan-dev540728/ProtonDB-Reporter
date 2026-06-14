@@ -19,14 +19,9 @@ func FetchMonthlyReports() ([]byte, error) {
 	// pattern is reports_MMM1_YYYY.tar.gz
 	// https://raw.githubusercontent.com/bdefore/protondb-data/master/reports/reports_may1_2025.tar.gz
 
-	// should skip all dates that are future in device including days or stop when there is a hit and
-	// add more print to show what's happening in the fetcher
-	// or just base the year and month on the current device date
+	// bug issue found if while downloading and you turn off the internet the whole CLI stops and does not update however it does continue if you reconnect to the internet
 
-	// bug issue found if while downloading and you turn off the internet the whole CLI stops and does not update
-	// however it does continue if you reconnect to the internet
-
-	// local, online and local fallback checks are added but need to add another one for previous month download if two scenarios of local current and online current not existing(fresh install or no old archive)
+	// online and local fallback checks are added but need to add another one for previous month download if two scenarios of local previous month not existing and online current month reports not existing(fresh install and no old archive)
 
 	now := time.Now()
 	var found bool
@@ -129,11 +124,6 @@ func DownloadFile(fileNameFormatted string, url string) (fullFilePath string, er
 		log.Fatal(errorMkDirDownloads)
 	}
 
-	errorMkDirExtracted := os.MkdirAll("data/reports/extracted", 0750)
-	if errorMkDirExtracted != nil && !os.IsExist(errorMkDirExtracted) {
-		log.Fatal(errorMkDirExtracted)
-	}
-
 	out, err := os.Create(filepath.Join("data/reports/downloads", fileNameFormatted))
 	if err != nil {
 		return "", err
@@ -175,6 +165,11 @@ func extractTarGz(fullFilePath string) ([]byte, error) {
 		}
 
 		if header.Name == "reports_piiremoved.json" {
+
+			/*
+			  var reports []models.Report
+			  err := json.NewDecoder(tarReader).Decode(&reports)
+			*/
 
 			jsonBytes, _ := io.ReadAll(tarReader)
 			return jsonBytes, nil

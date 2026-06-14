@@ -8,6 +8,10 @@ import (
 	"github.com/AllanRaphael173554/protondb-reporter/pkg/models"
 )
 
+/* json unmarshal vs json.Decoder
+need to rework this in the future
+*/
+
 func FilterReportsByGameID(jsonData []byte, gameID string) ([]models.Report, string, error) {
 
 	var rawReports []interface{}
@@ -15,6 +19,7 @@ func FilterReportsByGameID(jsonData []byte, gameID string) ([]models.Report, str
 	var filteredReports []models.Report
 	var gameTitle string
 
+	// this needs to be reworked
 	err := json.Unmarshal(jsonData, &rawReports)
 	if err != nil {
 		return nil, "", err

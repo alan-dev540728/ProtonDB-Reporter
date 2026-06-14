@@ -10,8 +10,6 @@ import (
 
 func GenerateReport(game *models.Game) string {
 
-	// todo better formatting
-
 	verdictStr := "Game Verdict Votes: \n"
 	for verdict, count := range game.VerdictDistribution {
 		if verdict == "yes" {
@@ -61,7 +59,7 @@ func GenerateSteamCuratorReport(game *models.Game) string {
 		nativeStr = ""
 	} else {
 		dateStr = now.Format("2006-01-02")
-		nativeStr = fmt.Sprintf("\nNative Reports: Total: %d, %d working, %d not working",
+		nativeStr = fmt.Sprintf("\nTotal Native Reports: %d, %d working, %d not working",
 			game.NativeReports.Count,
 			game.NativeReports.WorkingCount,
 			game.NativeReports.NotWorkingCount)
@@ -79,7 +77,7 @@ func GenerateSteamCuratorReport(game *models.Game) string {
 func GenerateEmptyReportMessage(gameID string) string {
 	now := time.Now()
 	dateStr := now.Format("Jan 2, 2006")
-	return fmt.Sprintf("No Reports found for game ID %s in month's archive. \n "+
+	return fmt.Sprintf("No Reports found for game ID %s in month's archive. Double check if the game ID is correct or if the game has reports in the archive.\n"+
 		"Please consider making a detailed report on ProtonDB.com if you own this game "+
 		"and have tested it on Linux to help the community and get an accurate report next month \n"+
 		"Last Updated: %s", gameID, dateStr)

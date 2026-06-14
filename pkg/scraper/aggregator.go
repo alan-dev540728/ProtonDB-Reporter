@@ -7,8 +7,6 @@ import (
 	"github.com/AllanRaphael173554/protondb-reporter/pkg/models"
 )
 
-// todo implement logic and all other parts of the report struct that could be aggregated
-
 func AggregateCommonProtonVersion(reports []models.Report) []models.VersionStats {
 
 	if len(reports) == 0 {
@@ -77,13 +75,7 @@ func AggregateCommonLinuxDistros(reports []models.Report) []models.DistroStats {
 }
 
 /*
-func AggregateGameRatingChange(Rating string) string {
-
-	return "No change"
-}*/
-
-/*
-Possible Rating Version
+Possible Rating Version Since I do not know the official rating calculation
 90%+ platinum
 70-89% Gold
 40-69% Silver
@@ -176,3 +168,9 @@ func AggregateNativeReports(reports []models.Report) models.NativeStats {
 
 	return stats
 }
+
+/*
+func AggregateGameRatingChange(Rating string) string {
+
+	return "No change"
+}*/

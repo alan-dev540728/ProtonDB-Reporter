@@ -13,12 +13,16 @@ import (
 
 /*
 Todo:
-Add more error log and handling
+redo error handling
 uniformed error logging either fmt or errors.new
 fix broken forloop in fetcher
 
 problem with current looping gameID to fetch is if a report does not exist instead of moving on to next gameID it stops
 also only checks if input is numeric after extracting part
+
+check for ram usage when extracting
+ram usage is around 3 to 4.9 GiB as observed probably jumps between the number of reports for a single game or something else
+
 */
 
 func main() {
@@ -53,21 +57,35 @@ func main() {
 
 	for _, gameID := range gameIDs {
 		if _, err := strconv.Atoi(gameID); err != nil {
-			fmt.Printf("\nSkipping invalid Game ID (must be numeric): %s\n", gameID)
+			//triggers after generating empty report message but it does not stop the loop and continues to next gameID
+			fmt.Printf("\nSkipping invalid Game ID must be numeric: %s\n", gameID)
 			continue
 		}
-		fmt.Printf("\nProcessing reports for Game ID: %s\n", gameID)
+
+		fmt.Printf("\nChecking reports for Game ID: %s\n", gameID)
+
 		filteredReports, gameTitle, err := scraper.FilterReportsByGameID(fetchedReports, gameID)
-		// does not work either don't generate report or keep current print from report_generator.go
+		// it works on a rare case
+		/*
+			Fetching and processing reports for game IDs: [420]
+			Fetching ProtonDB Report archive, this may take a moment...
+			Found cached Archive for current month reports_jun1_2026.tar.gz
+			Extracting Report Archive
+
+			Checking reports for Game ID: 420
+			Error filtering reports: unexpected end of JSON input
+			No reports found for game ID 420. Please verify the game ID and try again.
+		*/
 		if err != nil {
 			fmt.Printf("Error filtering reports: %v\n", err)
 			fmt.Printf("No reports found for game ID %s. Please verify the game ID and try again.\n", gameID)
-			return
+			continue
 		}
 
+		// no reports for game in archive
 		if len(filteredReports) == 0 {
 			fmt.Println(scraper.GenerateEmptyReportMessage(gameID))
-			return
+			continue
 		}
 
 		verdictMap := make(map[string]int)
