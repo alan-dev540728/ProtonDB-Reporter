@@ -1,6 +1,8 @@
 # git ignore files
 .env
+# Planning and documentation files
 plan.md
+# Comparison Files
 unit_test
 game_388.txt
 game_16
@@ -10,5 +12,6 @@ test
 comparison.txt
 unit_test.go
 change.md
+
 # git ignore folders
 /data/reports/
