@@ -14,9 +14,9 @@ A Simple CLI tool to Extract Game Specific ProtonDB monthly reports from [proton
 
 
 ## Requirements
-go1.x+
-4GB RAM (JSON unmarshal)
-Internet for first download
+- go1.x+
+- 4GB RAM (JSON unmarshal)
+- Internet for first download
 
 ## Install
 
@@ -29,7 +29,7 @@ No executables yet Source build only.
 
 ## Usage
 go run main.go
-> Enter Game IDs to Fetch Reports: 70 220 420
+Enter Game IDs to Fetch Reports: 70 220 420
 [![Screenshot.png](https://i.postimg.cc/hjfr38rd/Screenshot.png)](https://postimg.cc/47RVY9jf)
 
 
@@ -38,9 +38,9 @@ RAM usage is 3–5GB
 
 ## Features Planned
 Export options:
-.txt file output for full report
-.csv export for monthly trend tracking
-.xlsx multi-sheet for distribution analysis
+- .txt file output for full report
+- .csv export for monthly trend tracking
+- .xlsx multi-sheet for distribution analysis
 
 # Open Database License
 Contains data from [protondb-data](https://github.com/bdefore/protondb-data)
