@@ -21,14 +21,14 @@ A Simple CLI tool to Extract Game Specific ProtonDB monthly reports from [proton
 ## Install
 
 ```bash
-git clone <repo>
-cd protondb-reporter
+git clone <https://github.com/alan-dev540728/ProtonDB-Reporter.git>
+cd ProtonDB-Reporter
 go run .
 ```
 No executables yet Source build only.
 
 ## Usage
-go run main.go
+go run main.go  
 Enter Game IDs to Fetch Reports: 70 220 420
 [![Screenshot.png](https://i.postimg.cc/hjfr38rd/Screenshot.png)](https://postimg.cc/47RVY9jf)
 

@@ -16,17 +16,19 @@ Todo:
 redo error handling
 uniformed error logging either fmt or errors.new
 fix broken forloop in fetcher
+study goroutines channel and mutexes again
 
 problem with current looping gameID to fetch is if a report does not exist instead of moving on to next gameID it stops
 also only checks if input is numeric after extracting part
 
-check for ram usage when extracting
-ram usage is around 3 to 4.9 GiB as observed probably jumps between the number of reports for a single game or something else
+ram usage is around 3 to 4.9 GB
 
 */
 
 func main() {
 	//var outputFile bool
+	var curator bool
+	curator = false
 
 	fmt.Println("Welcome to ProtonDB Reporter")
 	fmt.Println("This tool fetches the latest monthly ProtonDB reports, processes them, and generates a comprehensive report for a specified game.")
@@ -115,10 +117,12 @@ func main() {
 		reportText := scraper.GenerateReport(game)
 		fmt.Println(reportText)
 
-		fmt.Println("\n===============================")
-		fmt.Println("Steam Curator Micro Report")
-		steamReport := scraper.GenerateSteamCuratorReport(game)
-		fmt.Println(steamReport)
+		if curator {
+			fmt.Println("\n===============================")
+			fmt.Println("Steam Curator Micro Report")
+			steamReport := scraper.GenerateSteamCuratorReport(game)
+			fmt.Println(steamReport)
+		}
 	}
 
 }
