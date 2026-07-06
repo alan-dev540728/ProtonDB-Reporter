@@ -3,12 +3,11 @@
 # Planning and documentation files
 plan.md
 # Comparison Files
-unit_test
 game_388.txt
-game_16
-native
-report format
-test
+game_16.txt
+native.txt
+report format.txt
+test.txt
 comparison.txt
 unit_test.go
 change.md
