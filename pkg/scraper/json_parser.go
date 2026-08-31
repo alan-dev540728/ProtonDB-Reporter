@@ -3,6 +3,7 @@ package scraper
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"strconv"
 
 	"github.com/AllanRaphael173554/protondb-reporter/pkg/models"
@@ -12,14 +13,46 @@ import (
 need to rework this in the future
 */
 
-func FilterReportsByGameID(jsonData []byte, gameID string) ([]models.Report, string, error) {
+func FilterReportsByGameID(reader io.Reader, gameID string) ([]models.Report, string, error) {
 
-	var rawReports []interface{}
+	decoder := json.NewDecoder(reader)
+
+	token, err := decoder.Token()
+	if err != nil {
+		return nil, "", err
+	}
+	if delimiter, ok := token.(json.Delim); !ok || delimiter != '[' {
+		return nil, "", fmt.Errorf("expected JSON array, got %v", token)
+	}
 
 	var filteredReports []models.Report
 	var gameTitle string
 
-	// this needs to be reworked
+	for decoder.More() {
+		var rawReport map[string]interface{}
+
+		if err := decoder.Decode(&rawReport); err != nil {
+			return nil, "", fmt.Errorf("decode report: %w", err)
+		}
+
+		report, matches := parseReport(rawReport, gameID)
+		if !matches {
+			continue
+		}
+
+		filteredReports = append(filteredReports, report)
+		if gameTitle == "" {
+			gameTitle = report.AppTitle
+		}
+	}
+
+	if _, err := decoder.Token(); err != nil {
+		return nil, "", err
+	}
+	return filteredReports, gameTitle, nil
+
+	/* this needs to be reworked
+
 	err := json.Unmarshal(jsonData, &rawReports)
 	if err != nil {
 		return nil, "", err
@@ -87,7 +120,68 @@ func FilterReportsByGameID(jsonData []byte, gameID string) ([]models.Report, str
 
 	fmt.Println("Finished parsing reports for " + gameID)
 	return filteredReports, gameTitle, nil
+	*/
+}
 
+func parseReport(rawReport map[string]interface{}, gameID string) (models.Report, bool) {
+
+	app, ok := rawReport["app"].(map[string]interface{})
+	if !ok {
+		return models.Report{}, false
+	}
+
+	steam, ok := app["steam"].(map[string]interface{})
+	if !ok {
+		return models.Report{}, false
+	}
+
+	if toString(steam["appId"]) != gameID {
+		return models.Report{}, false
+	}
+
+	responses, ok := rawReport["responses"].(map[string]interface{})
+	if !ok {
+		return models.Report{}, false
+	}
+
+	systemInfo, _ := rawReport["systemInfo"].(map[string]interface{})
+
+	title := toString(app["title"])
+	variant := resolveVariant(responses)
+
+	return models.Report{
+		AppTitle:            title,
+		Installs:            toString(responses["installs"]),
+		ProtonVersion:       variant,
+		CustomProtonVersion: toString(responses["customProtonVersion"]),
+		Verdict:             toString(responses["verdict"]),
+		VerdictOutOfTheBox:  toString(responses["verdictOob"]),
+		OperatingSystem:     toString(systemInfo["os"]),
+		ImpactedByAntiCheat: stringToBool(toString(responses["isImpactedByAntiCheat"])),
+	}, true
+
+}
+
+func resolveVariant(responses map[string]interface{}) string {
+	variant := toString(responses["variant"])
+
+	switch variant {
+	case "older":
+		if value := toString(responses["protonVersion"]); value != "" {
+			return value
+		}
+	case "notListed":
+		notes, _ := responses["notes"].(map[string]interface{})
+		if value := toString(notes["variant"]); value != "" {
+			return value
+		}
+	case "ge":
+		if value := toString(responses["customProtonVersion"]); value != "" {
+			return value
+		}
+	}
+
+	return variant
 }
 
 func stringToBool(s string) bool {

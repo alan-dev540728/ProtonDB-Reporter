@@ -11,6 +11,10 @@ test.txt
 comparison.txt
 unit_test.go
 change.md
+todo.txt
+comparison_new_filter.txt
+all_reports.txt
 
 # git ignore folders
 /data/reports/
+/testing/

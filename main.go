@@ -21,14 +21,16 @@ study goroutines channel and mutexes again
 problem with current looping gameID to fetch is if a report does not exist instead of moving on to next gameID it stops
 also only checks if input is numeric after extracting part
 
-ram usage is around 3 to 4.9 GB
+RAM usage seems fixed but it still download fetch everytime
+basically just hovering around 2GB of usage and not going up or down but there is always a
+download and upload activity whenwever it moves to a new gmameID
 
+Review code again
 */
 
 func main() {
-	//var outputFile bool
-	var curator bool
-	curator = false
+	var saveToFile bool
+	var allReports strings.Builder
 
 	fmt.Println("Welcome to ProtonDB Reporter")
 	fmt.Println("This tool fetches the latest monthly ProtonDB reports, processes them, and generates a comprehensive report for a specified game.")
@@ -36,6 +38,61 @@ func main() {
 		"All of this is possible thanks to the reports of the ProtonDB community. The data is sourced from the ProtonDB-data GitHub repository, which contains user-submitted reports on game compatibility with Proton on Linux.")
 	fmt.Println("There are some limitations to this project such as accurate game rating calculation and monthly report availability.")
 	fmt.Println("=================================")
+
+	gameIDs := readGameIDs()
+
+	// Save to File prompt
+	saveToFile = saveToFilePrompt()
+
+	fmt.Println("Fetching and processing reports for game IDs:", gameIDs)
+
+	for _, gameID := range gameIDs {
+
+		if !isGameIDNumeric(gameID) {
+			fmt.Printf("\nSkipping invalid Game ID must be numeric: %s\n", gameID)
+			continue
+		}
+
+		reportText, err := processGameIDs(gameID)
+		if err != nil {
+			if saveToFile {
+				allReports.WriteString("Game ID: " + gameID + "\n")
+				allReports.WriteString(scraper.GenerateEmptyReportMessage(gameID) + "\n")
+				allReports.WriteString("\n\n==============================\n\n")
+			} else {
+				fmt.Println(err.Error())
+			}
+			continue
+		}
+		if saveToFile {
+			allReports.WriteString("Game ID: " + gameID + "\n")
+			allReports.WriteString(reportText + "\n")
+			allReports.WriteString("\n\n==============================\n\n")
+		} else {
+			fmt.Println(reportText)
+		}
+
+	}
+
+	if saveToFile {
+
+		err := os.MkdirAll("data/reports/output", 0755)
+		if err != nil {
+			fmt.Println("Error creating reports directory:", err)
+		}
+
+		err = os.WriteFile("data/reports/output/all_reports.txt", []byte(allReports.String()), 0644)
+		if err != nil {
+			fmt.Println("Writing to file failed:", err)
+			return
+		}
+		fmt.Println("All reports saved to data/reports/output/all_reports.txt")
+	}
+
+}
+
+func readGameIDs() []string {
+	// Steam Game ID input
 	fmt.Println("Enter Game IDs to Fetch Reports:")
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
@@ -44,85 +101,117 @@ func main() {
 	gameIDs := strings.Fields(strings.TrimSpace(input))
 	if len(gameIDs) == 0 {
 		fmt.Println("Game IDs cannot be empty.")
-		return
+		// need to exit here or prompt again for input
+		os.Exit(1)
+	}
+	return gameIDs
+}
+
+func saveToFilePrompt() bool {
+	var save bool
+
+	fmt.Println("Save reports to file? (y/n)")
+	reader := bufio.NewReader(os.Stdin)
+	answer, _ := reader.ReadString('\n')
+	answer = strings.TrimSpace(strings.ToLower(answer))
+
+	if answer != "y" && answer != "n" {
+		fmt.Println("Invalid input Defaulting to 'n'.")
+		save = false
+	} else {
+		if answer == "y" {
+			save = true
+		} else {
+			save = false
+		}
+	}
+	return save
+}
+
+func isGameIDNumeric(gameID string) bool {
+	if _, err := strconv.Atoi(gameID); err != nil {
+		// triggers on incorrect Game ID with string text
+		// triggers after generating empty report message but it does not stop the loop and continues to next gameID
+		// is not written for all_reports.txt
+		return false
+	}
+	return true
+}
+
+func buildGameModel(gameID, gameTitle string, reports []models.Report) *models.Game {
+	verdictMap := make(map[string]int)
+
+	for _, report := range reports {
+		verdictMap[report.Verdict]++
 	}
 
-	//fmt.Println("Do you want to save the report to a file? (y/n)")
-	//fmt.Scanln(&outputFile)
+	ratingStr := scraper.AggregateVerdictDistribution(reports)
+	nativeStats := scraper.AggregateNativeReports(reports)
+	topProtonVersions := scraper.AggregateCommonProtonVersion(reports)
+	topDistros := scraper.AggregateCommonLinuxDistros(reports)
 
-	fmt.Println("Fetching and processing reports for game IDs:", gameIDs)
-	fetchedReports, err := scraper.FetchMonthlyReports()
-	if err != nil {
-		fmt.Printf("Error fetching monthly reports: %v\n", err)
-		return
+	return &models.Game{
+		ID:                  gameID,
+		Title:               gameTitle,
+		SteamDeckStatus:     "No Data Included",
+		VerdictDistribution: verdictMap,
+		CalculatedRating:    ratingStr,
+		OfficialRating:      "No Data Included",
+		TotalReports:        len(reports),
+		TopProtonVersions:   topProtonVersions,
+		TopLinuxDistros:     topDistros,
+		NativeReports:       nativeStats,
 	}
 
-	for _, gameID := range gameIDs {
-		if _, err := strconv.Atoi(gameID); err != nil {
-			//triggers after generating empty report message but it does not stop the loop and continues to next gameID
-			fmt.Printf("\nSkipping invalid Game ID must be numeric: %s\n", gameID)
-			continue
-		}
+}
 
-		fmt.Printf("\nChecking reports for Game ID: %s\n", gameID)
-
-		filteredReports, gameTitle, err := scraper.FilterReportsByGameID(fetchedReports, gameID)
-		// it works on a rare case
-		/*
-			Fetching and processing reports for game IDs: [420]
-			Fetching ProtonDB Report archive, this may take a moment...
-			Found cached Archive for current month reports_jun1_2026.tar.gz
-			Extracting Report Archive
-
-			Checking reports for Game ID: 420
-			Error filtering reports: unexpected end of JSON input
-			No reports found for game ID 420. Please verify the game ID and try again.
-		*/
-		if err != nil {
-			fmt.Printf("Error filtering reports: %v\n", err)
-			fmt.Printf("No reports found for game ID %s. Please verify the game ID and try again.\n", gameID)
-			continue
-		}
-
-		// no reports for game in archive
-		if len(filteredReports) == 0 {
-			fmt.Println(scraper.GenerateEmptyReportMessage(gameID))
-			continue
-		}
-
-		verdictMap := make(map[string]int)
-
-		for _, report := range filteredReports {
-			verdictMap[report.Verdict]++
-		}
-		ratingStr := scraper.AggregateVerdictDistribution(filteredReports)
-		nativeStats := scraper.AggregateNativeReports(filteredReports)
-		topProtonVersions := scraper.AggregateCommonProtonVersion(filteredReports)
-		topDistros := scraper.AggregateCommonLinuxDistros(filteredReports)
-
-		game := &models.Game{
-			ID:                  gameID,
-			Title:               gameTitle,
-			SteamDeckStatus:     "No Data Included",
-			VerdictDistribution: verdictMap,
-			CalculatedRating:    ratingStr,
-			OfficialRating:      "No Data Included",
-			TotalReports:        len(filteredReports),
-			TopProtonVersions:   topProtonVersions,
-			TopLinuxDistros:     topDistros,
-			NativeReports:       nativeStats,
-		}
-
+func generateReportText(game *models.Game, curator bool) string {
+	if curator {
+		fmt.Println("\n===============================")
+		fmt.Println("Steam Curator Micro Report")
+		curatorReportText := scraper.GenerateSteamCuratorReport(game)
+		fmt.Println("DEBUG 218:" + curatorReportText)
+		return curatorReportText
+	} else {
 		fmt.Println("Generating Report \n =================================")
-		reportText := scraper.GenerateReport(game)
-		fmt.Println(reportText)
-
-		if curator {
-			fmt.Println("\n===============================")
-			fmt.Println("Steam Curator Micro Report")
-			steamReport := scraper.GenerateSteamCuratorReport(game)
-			fmt.Println(steamReport)
-		}
+		normalReportText := scraper.GenerateReport(game)
+		fmt.Println(normalReportText)
+		return normalReportText
 	}
+
+}
+
+func processGameIDs(gameID string) (string, error) {
+	var curator bool
+	curator = false
+
+	fmt.Printf("\nChecking reports for Game ID: %s\n", gameID)
+	filteredReports, gameTitle, err := scraper.FetchMonthlyReports(gameID)
+
+	// it works on a rare case
+	/*
+		Fetching and processing reports for game IDs: [420]
+		Fetching ProtonDB Report archive, this may take a moment...
+		Found cached Archive for current month reports_jun1_2026.tar.gz
+		Extracting Report Archive
+
+		Checking reports for Game ID: 420
+		Error filtering reports: unexpected end of JSON input
+		No reports found for game ID 420. Please verify the game ID and try again.
+	*/
+	if err != nil || len(filteredReports) == 0 {
+		fmt.Printf("Error filtering reports: %v\n", err)
+		fmt.Printf("No reports found for game ID %s. Please verify the game ID and try again.\n", gameID)
+
+	}
+
+	// no reports for game in archive
+	if len(filteredReports) == 0 {
+		return "", fmt.Errorf(scraper.GenerateEmptyReportMessage(gameID))
+	}
+
+	game := buildGameModel(gameID, gameTitle, filteredReports)
+
+	return generateReportText(game, curator), nil
 
 }

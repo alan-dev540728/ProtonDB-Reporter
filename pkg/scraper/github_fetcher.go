@@ -12,9 +12,11 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/AllanRaphael173554/protondb-reporter/pkg/models"
 )
 
-func FetchMonthlyReports() ([]byte, error) {
+func FetchMonthlyReports(gameID string) ([]models.Report, string, error) {
 	// https://github.com/bdefore/protondb-data/blob/master/reports/reports_jan1_2023.tar.gz
 	// pattern is reports_MMM1_YYYY.tar.gz
 	// https://raw.githubusercontent.com/bdefore/protondb-data/master/reports/reports_may1_2025.tar.gz
@@ -22,6 +24,8 @@ func FetchMonthlyReports() ([]byte, error) {
 	// bug issue found if while downloading and you turn off the internet the whole CLI stops and does not update however it does continue if you reconnect to the internet
 
 	// online and local fallback checks are added but need to add another one for previous month download if two scenarios of local previous month not existing and online current month reports not existing(fresh install and no old archive)
+
+	// TODO: clean up the code
 
 	now := time.Now()
 	var found bool
@@ -90,15 +94,10 @@ func FetchMonthlyReports() ([]byte, error) {
 	//can trigger if year/month/day is wrong
 	// would not be triggered because of !if statement above?
 	if !found {
-		return nil, errors.New("No report archive found")
+		return nil, "", errors.New("No report archive found")
 	}
 
-	reports, err := extractTarGz(fullFilePath)
-	if err != nil {
-		log.Fatal(err)
-		return nil, err
-	}
-	return reports, nil
+	return extractTarGz(fullFilePath, gameID)
 }
 
 func DownloadFile(fileNameFormatted string, url string) (fullFilePath string, err error) {
@@ -133,21 +132,21 @@ func DownloadFile(fileNameFormatted string, url string) (fullFilePath string, er
 	return filepath.Join("data/reports/downloads", fileNameFormatted), err
 }
 
-func extractTarGz(fullFilePath string) ([]byte, error) {
+func extractTarGz(fullFilePath string, gameID string) ([]models.Report, string, error) {
 
 	fmt.Println("Extracting Report Archive")
 
 	file, err := os.Open(fullFilePath)
 	if err != nil {
 		log.Fatal(err)
-		return nil, err
+		return nil, "", err
 	}
 	defer file.Close()
 
 	gzipNewReader, err := gzip.NewReader(file)
 	if err != nil {
 		log.Fatal(err)
-		return nil, err
+		return nil, "", err
 	}
 	defer gzipNewReader.Close()
 
@@ -156,25 +155,19 @@ func extractTarGz(fullFilePath string) ([]byte, error) {
 	for {
 		header, err := tarReader.Next()
 
+		if err == io.EOF {
+			break
+		}
+
 		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			log.Fatal(err)
-			return nil, err
+			return nil, "", err
 		}
 
 		if header.Name == "reports_piiremoved.json" {
 
-			/*
-			  var reports []models.Report
-			  err := json.NewDecoder(tarReader).Decode(&reports)
-			*/
-
-			jsonBytes, _ := io.ReadAll(tarReader)
-			return jsonBytes, nil
+			return FilterReportsByGameID(tarReader, gameID)
 		}
 
 	}
-	return nil, errors.New("reports_piiremoved.json not found in the tar.gz archive")
+	return nil, "", errors.New("reports_piiremoved.json not found in the tar.gz archive")
 }
