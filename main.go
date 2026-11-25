@@ -7,13 +7,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/AllanRaphael173554/protondb-reporter/pkg/history"
 	"github.com/AllanRaphael173554/protondb-reporter/pkg/models"
 	"github.com/AllanRaphael173554/protondb-reporter/pkg/scraper"
 )
 
 /*
 Todo:
-redo error handling
+redo error handlings
 uniformed error logging either fmt or errors.new
 fix broken forloop in fetcher
 study goroutines channel and mutexes again
@@ -23,9 +24,21 @@ also only checks if input is numeric after extracting part
 
 RAM usage seems fixed but it still download fetch everytime
 basically just hovering around 2GB of usage and not going up or down but there is always a
-download and upload activity whenwever it moves to a new gmameID
+download and upload activity whenever it moves to a new gameID
 
-Review code again
+Redo Todos and notes and comments
+add gosec and CI
+fix paths
+make permanent fix to choose normal or curator report and db export
+add dynamic monthDay format to tar.gz
+
+update reports to move "you can expand" to the end of the report instead of start
+update reports to add extra new lines between sentences for easy copy paste
+
+add proper json structure documentation to this project
+
+change downloads location to protondb/downloads
+change output to reports so for game specific reviews reports/curator_report reports/full_report reports/something.csv
 */
 
 func main() {
@@ -46,6 +59,10 @@ func main() {
 
 	fmt.Println("Fetching and processing reports for game IDs:", gameIDs)
 
+	if err := runHistoryPipeline(); err != nil {
+		fmt.Println("History pipeline failed:", err)
+		return
+	}
 	for _, gameID := range gameIDs {
 
 		if !isGameIDNumeric(gameID) {
@@ -200,6 +217,7 @@ func processGameIDs(gameID string) (string, error) {
 		No reports found for game ID 420. Please verify the game ID and try again.
 	*/
 	if err != nil || len(filteredReports) == 0 {
+		// Error filtering reports: <nil>
 		fmt.Printf("Error filtering reports: %v\n", err)
 		fmt.Printf("No reports found for game ID %s. Please verify the game ID and try again.\n", gameID)
 
@@ -213,5 +231,42 @@ func processGameIDs(gameID string) (string, error) {
 	game := buildGameModel(gameID, gameTitle, filteredReports)
 
 	return generateReportText(game, curator), nil
+
+}
+
+// needs to be updated to select between curator/normal report or db and csv export
+// runHistoryPipeline runs before generate report
+func runHistoryPipeline() error {
+	// also need to make the path of monthDay and year dynamic
+	archivePath := "data/reports/downloads/reports_nov1_2026.tar.gz"
+	jsonlPath := "data/protondb/jsonl/reports_nov1_2026.jsonl"
+	dbPath := "data/protondb/database/protondb_history.db"
+	csvPath := "data/reports/output/total_reports.csv"
+
+	// extract
+	if err := history.ExtractJSONLFromArchive(archivePath, jsonlPath); err != nil {
+		return err
+	}
+
+	// validate
+	valid, invalid, err := history.ValidateJSONL(jsonlPath)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("valid: %d, invalid: %d\n", valid, invalid)
+
+	// import
+	inserted, skipped, err := history.ImportJSONLToSQLite(jsonlPath, dbPath)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("inserted: %d, skipped: %d\n", inserted, skipped)
+
+	// Query Export to CSV
+	// database path, query, CSV output path, args
+	// Hardcoded
+	return history.ExportQueryToCSV(dbPath, history.QueryGameProtonVersions, csvPath, "1745790")
 
 }

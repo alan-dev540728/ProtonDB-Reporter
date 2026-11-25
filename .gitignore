@@ -17,4 +17,5 @@ all_reports.txt
 
 # git ignore folders
 /data/reports/
+/data/
 /testing/
